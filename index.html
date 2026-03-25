@@ -13,7 +13,6 @@
     h1 { text-align: center; color: #00d4ff; margin-bottom: 20px; font-size: 1.8em; }
     .container { max-width: 900px; margin: 0 auto; }
 
-    /* ── Top bar ── */
     .topbar {
       display: flex; gap: 10px; align-items: center;
       background: #16213e; padding: 12px 16px;
@@ -40,7 +39,6 @@
     }
     .btn-settings:hover, .btn-settings.active { background: #7289da; color: #fff; }
 
-    /* ── Controls ── */
     .controls {
       display: flex; flex-wrap: wrap; gap: 10px;
       background: #16213e; padding: 16px; border-radius: 10px; margin-bottom: 20px;
@@ -60,7 +58,6 @@
     .btn-refresh:hover { background: #1a4a80; }
     .alert-info { font-size: 0.82em; color: #aaa; margin-top: 6px; }
 
-    /* ── Settings panel ── */
     .settings-panel {
       background: #16213e; border-radius: 10px;
       padding: 20px; margin-bottom: 20px;
@@ -68,9 +65,7 @@
     }
     .settings-panel.open { display: block; }
     .settings-panel h2 { color: #7289da; font-size: 1.1em; margin-bottom: 16px; }
-    .setting-row {
-      display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;
-    }
+    .setting-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
     .setting-row label { color: #aaa; font-size: 0.88em; }
     .setting-row input {
       padding: 10px; border-radius: 8px;
@@ -94,12 +89,9 @@
     .webhook-status { font-size: 0.82em; margin-left: 4px; }
     .webhook-status.ok  { color: #00ff88; }
     .webhook-status.err { color: #ff4466; }
-    .setting-hint {
-      font-size: 0.78em; color: #666; margin-top: 4px; line-height: 1.5;
-    }
+    .setting-hint { font-size: 0.78em; color: #666; margin-top: 4px; line-height: 1.5; }
     .setting-hint a { color: #7289da; }
 
-    /* ── Table ── */
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; }
     th { background: #0f3460; color: #00d4ff; padding: 12px 14px; text-align: left; font-size: 0.9em; }
@@ -159,8 +151,8 @@
   <!-- Top bar -->
   <div class="topbar">
     <label>Mode:</label>
-    <button class="toggle-btn active" id="btn-watchlist" onclick="setMode('watchlist')">⭐ Favourites</button>
-    <button class="toggle-btn" id="btn-all" onclick="setMode('all')">🌐 Popular Skins</button>
+    <button class="toggle-btn active" id="btn-all" onclick="setMode('all')">🌐 Popular Skins</button>
+    <button class="toggle-btn" id="btn-watchlist" onclick="setMode('watchlist')">⭐ Favourites</button>
     <div class="currency-toggle">
       <button class="cur-btn" id="cur-usd" onclick="setCurrency(1,'$','USD')">$ USD</button>
       <button class="cur-btn active" id="cur-eur" onclick="setCurrency(3,'€','EUR')">€ EUR</button>
@@ -171,7 +163,6 @@
   <!-- Settings panel -->
   <div class="settings-panel" id="settingsPanel">
     <h2>⚙️ Settings</h2>
-
     <div class="setting-row">
       <label>Discord Webhook URL</label>
       <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." />
@@ -180,13 +171,11 @@
         Price alerts will be sent to this channel automatically.
       </div>
     </div>
-
     <div class="setting-row">
-      <label>Discord Username (optional)</label>
+      <label>Discord Bot Name (optional)</label>
       <input type="text" id="webhookUsername" placeholder="CS2 Price Alert" />
       <div class="setting-hint">The bot name shown in Discord. Leave empty for default.</div>
     </div>
-
     <div class="settings-actions">
       <button class="btn-save-settings" onclick="saveSettings()">💾 Save Settings</button>
       <button class="btn-test-webhook" onclick="testWebhook()">🧪 Test Webhook</button>
@@ -201,7 +190,7 @@
       onkeydown="if(event.key==='Enter') addSkin()" />
     <input id="alertPrice" type="number" min="0" step="0.01"
       placeholder="Price alert (€) – optional" />
-    <button class="btn-add" onclick="addSkin()">+ Add</button>
+    <button class="btn-add" onclick="addSkin()">+ Add to Favourites</button>
     <button class="btn-refresh" onclick="refreshAll()">🔄 Refresh</button>
   </div>
   <div class="alert-info" id="alertInfo">💡 Set a price alert – you'll get an in-app notification and a Discord message when triggered.</div>
@@ -221,7 +210,7 @@
         </tr>
       </thead>
       <tbody id="skinBody">
-        <tr><td colspan="7" class="empty">Add skins to your Favourites ☝️</td></tr>
+        <tr><td colspan="7" class="empty">Loading popular skins...</td></tr>
       </tbody>
     </table>
   </div>
@@ -244,13 +233,30 @@ let currencyId     = 3;
 let currencySymbol = '€';
 let currencyName   = 'EUR';
 let editingIdx     = null;
-let mode           = 'watchlist';
+let mode           = 'all';
 let watchlist      = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
 let popularData    = [];
+let settings       = JSON.parse(localStorage.getItem('cs2settings') || '{}');
+
+const POPULAR_SKINS = [
+  'AK-47 | Redline (Field-Tested)',
+  'AK-47 | Asiimov (Field-Tested)',
+  'AK-47 | Vulcan (Field-Tested)',
+  'AK-47 | Fire Serpent (Field-Tested)',
+  'AWP | Asiimov (Field-Tested)',
+  'AWP | Dragon Lore (Factory New)',
+  'AWP | Medusa (Field-Tested)',
+  'AWP | Lightning Strike (Factory New)',
+  'M4A4 | Howl (Field-Tested)',
+  'M4A4 | Asiimov (Field-Tested)',
+  'M4A1-S | Hot Rod (Factory New)',
+  'Desert Eagle | Blaze (Factory New)',
+  'Desert Eagle | Hand Cannon (Factory New)',
+  'Glock-18 | Fade (Factory New)',
+  'USP-S | Kill Confirmed (Field-Tested)',
+];
 
 // ── Settings ───────────────────────────────────────────────
-let settings = JSON.parse(localStorage.getItem('cs2settings') || '{}');
-
 function loadSettings() {
   if (settings.webhookUrl)      document.getElementById('webhookUrl').value = settings.webhookUrl;
   if (settings.webhookUsername) document.getElementById('webhookUsername').value = settings.webhookUsername;
@@ -277,10 +283,8 @@ function updateDiscordStatus() {
 }
 
 function toggleSettings() {
-  const panel = document.getElementById('settingsPanel');
-  const btn   = document.getElementById('btn-settings-toggle');
-  panel.classList.toggle('open');
-  btn.classList.toggle('active');
+  document.getElementById('settingsPanel').classList.toggle('open');
+  document.getElementById('btn-settings-toggle').classList.toggle('active');
 }
 
 // ── Test webhook ───────────────────────────────────────────
@@ -316,8 +320,7 @@ async function sendDiscordAlert({ title, description, color, fields }) {
     username: settings.webhookUsername || 'CS2 Price Alert',
     avatar_url: 'https://store.steampowered.com/favicon.ico',
     embeds: [{
-      title,
-      description,
+      title, description,
       color: color || 0xff4466,
       fields: fields || [],
       footer: { text: 'CS2 Steam Market Tracker' },
@@ -338,7 +341,6 @@ function setCurrency(id, symbol, name) {
   document.querySelectorAll('.cur-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('cur-' + name.toLowerCase()).classList.add('active');
   document.getElementById('alertHeader').textContent  = `Alert (${symbol})`;
-  document.getElementById('alertInfo').textContent    = `💡 Set a price alert – you'll get an in-app notification and a Discord message when triggered.`;
   document.getElementById('curLabel').textContent     = `${currencyName} ${currencySymbol}`;
   document.getElementById('alertPrice').placeholder   = `Price alert (${symbol}) – optional`;
   watchlist.forEach(item => { item.price = null; item.median = null; item.volume = null; item.loading = true; });
@@ -356,8 +358,8 @@ async function fetchWithProxy(url) {
 // ── Mode ───────────────────────────────────────────────────
 function setMode(m) {
   mode = m; editingIdx = null;
-  document.getElementById('btn-watchlist').classList.toggle('active', m === 'watchlist');
   document.getElementById('btn-all').classList.toggle('active', m === 'all');
+  document.getElementById('btn-watchlist').classList.toggle('active', m === 'watchlist');
   renderTable();
   if (m === 'all' && popularData.length === 0) fetchPopularSkins();
 }
@@ -425,12 +427,14 @@ async function fetchSkin(idx) {
 
 // ── Refresh all ────────────────────────────────────────────
 async function refreshAll() {
-  if (mode === 'watchlist') {
+  if (mode === 'all') {
+    fetchPopularSkins();
+  } else {
     if (!watchlist.length) return;
     watchlist.forEach(item => { item.loading = true; });
     renderTable();
     for (let i = 0; i < watchlist.length; i++) { await fetchSkin(i); await delay(1500); }
-  } else { fetchPopularSkins(); }
+  }
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
 }
 
@@ -442,24 +446,16 @@ async function fetchPopularSkins() {
     const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
     try {
       const data = await fetchWithProxy(url);
-      if (data.success) { item.price = data.lowest_price || '–'; item.median = data.median_price || '–'; item.volume = data.volume || '–'; }
-      else { item.price = 'Not found'; }
+      if (data.success) {
+        item.price  = data.lowest_price  || '–';
+        item.median = data.median_price  || '–';
+        item.volume = data.volume        || '–';
+      } else { item.price = 'Not found'; }
     } catch(e) { item.price = 'Error'; }
     item.loading = false; renderTable(); await delay(1500);
   }
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
 }
-
-const POPULAR_SKINS = [
-  'AK-47 | Redline (Field-Tested)', 'AK-47 | Asiimov (Field-Tested)',
-  'AK-47 | Vulcan (Field-Tested)', 'AK-47 | Fire Serpent (Field-Tested)',
-  'AWP | Asiimov (Field-Tested)', 'AWP | Dragon Lore (Factory New)',
-  'AWP | Medusa (Field-Tested)', 'AWP | Lightning Strike (Factory New)',
-  'M4A4 | Howl (Field-Tested)', 'M4A4 | Asiimov (Field-Tested)',
-  'M4A1-S | Hot Rod (Factory New)', 'Desert Eagle | Blaze (Factory New)',
-  'Desert Eagle | Hand Cannon (Factory New)', 'Glock-18 | Fade (Factory New)',
-  'USP-S | Kill Confirmed (Field-Tested)',
-];
 
 // ── Render ─────────────────────────────────────────────────
 function renderTable() {
@@ -520,22 +516,21 @@ function checkAlert(item) {
   const priceNum = parsePrice(item.price);
   if (!item.alertPrice || priceNum === null || priceNum > item.alertPrice) return;
 
-  // In-app értesítés
+  const steamUrl = `https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.name)}?filter=&country=HU&currency=${currencyId}`;
+
   showNotif(`🔔 Alert! ${item.name} – ${item.price} (target: ${currencySymbol}${item.alertPrice})`);
 
-  // Discord értesítés
   sendDiscordAlert({
-    title: '🔔 Price Alert Triggered!',
-    description: `**${item.name}** has dropped to your target price!`,
+    title: `🔔 Price Alert – ${item.name}`,
+    description: `**[👉 Click here to buy on Steam Market](${steamUrl})**\n\nThe price has dropped to your target!`,
     color: 0xff4466,
     fields: [
-      { name: '💰 Current Price', value: item.price, inline: true },
-      { name: '🎯 Your Target',   value: `${currencySymbol}${item.alertPrice}`, inline: true },
-      { name: '📊 Median Price',  value: item.median || '–', inline: true },
-      { name: '📦 Volume (24h)',  value: item.volume || '–', inline: true },
-      { name: '🔗 Steam Market',  value: `[View on Steam](https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.name)})`, inline: false },
+      { name: '💰 Current Lowest', value: `**${item.price}**`, inline: true },
+      { name: '🎯 Your Target',    value: `${currencySymbol}${item.alertPrice}`, inline: true },
+      { name: '📊 Median Price',   value: item.median || '–', inline: true },
+      { name: '📦 Volume (24h)',   value: item.volume || '–', inline: true },
     ]
-  }).catch(() => {}); // silent fail ha nincs webhook
+  }).catch(() => {});
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -552,10 +547,11 @@ function showNotif(msg) {
 function saveWatchlist() { localStorage.setItem('cs2watchlist', JSON.stringify(watchlist)); }
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// ── Init ───────────────────────────────────────────────────
 setInterval(() => refreshAll(), 5 * 60 * 1000);
 loadSettings();
 renderTable();
-if (watchlist.length) refreshAll();
+fetchPopularSkins();
 </script>
 </body>
 </html>
