@@ -1,189 +1,361 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>CS2 Steam Piac Figyelő</title>
+  <title>CS2 Steam Market Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #1a1a2e;
-      color: #e0e0e0;
-      min-height: 100vh;
-      padding: 20px;
+      background: #1a1a2e; color: #e0e0e0;
+      min-height: 100vh; padding: 20px;
     }
-    h1 {
-      text-align: center;
-      color: #00d4ff;
-      margin-bottom: 20px;
-      font-size: 1.8em;
-    }
+    h1 { text-align: center; color: #00d4ff; margin-bottom: 20px; font-size: 1.8em; }
     .container { max-width: 900px; margin: 0 auto; }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex; gap: 10px; align-items: center;
+      background: #16213e; padding: 12px 16px;
+      border-radius: 10px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .topbar label { color: #aaa; font-size: 0.9em; }
+    .toggle-btn {
+      padding: 8px 16px; border-radius: 20px; border: none;
+      cursor: pointer; font-size: 0.88em; font-weight: bold; transition: all 0.2s;
+    }
+    .toggle-btn.active { background: #00d4ff; color: #1a1a2e; }
+    .toggle-btn:not(.active) { background: #0f3460; color: #aaa; }
+    .currency-toggle { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+    .cur-btn {
+      padding: 6px 14px; border-radius: 16px; border: none;
+      cursor: pointer; font-size: 0.85em; font-weight: bold; transition: all 0.2s;
+    }
+    .cur-btn.active { background: #00d4ff; color: #1a1a2e; }
+    .cur-btn:not(.active) { background: #0f3460; color: #aaa; }
+    .btn-settings {
+      padding: 8px 16px; border-radius: 20px; border: 1px solid #7289da;
+      background: none; color: #7289da; cursor: pointer;
+      font-size: 0.88em; font-weight: bold; transition: all 0.2s;
+    }
+    .btn-settings:hover, .btn-settings.active { background: #7289da; color: #fff; }
+
+    /* ── Controls ── */
     .controls {
       display: flex; flex-wrap: wrap; gap: 10px;
-      background: #16213e; padding: 16px; border-radius: 10px;
-      margin-bottom: 20px;
+      background: #16213e; padding: 16px; border-radius: 10px; margin-bottom: 20px;
     }
-    .controls input, .controls select {
-      flex: 1; min-width: 180px;
-      padding: 10px; border-radius: 8px;
+    .controls input {
+      flex: 1; min-width: 180px; padding: 10px; border-radius: 8px;
       border: 1px solid #0f3460; background: #0f3460;
       color: #e0e0e0; font-size: 0.95em;
     }
     .controls button {
       padding: 10px 18px; border-radius: 8px; border: none;
-      cursor: pointer; font-size: 0.95em; font-weight: bold;
-      transition: background 0.2s;
+      cursor: pointer; font-size: 0.95em; font-weight: bold; transition: background 0.2s;
     }
-    .btn-add  { background: #00d4ff; color: #1a1a2e; }
-    .btn-add:hover  { background: #00b8d9; }
+    .btn-add { background: #00d4ff; color: #1a1a2e; }
+    .btn-add:hover { background: #00b8d9; }
     .btn-refresh { background: #0f3460; color: #00d4ff; border: 1px solid #00d4ff; }
     .btn-refresh:hover { background: #1a4a80; }
-    .mode-toggle {
-      display: flex; gap: 10px; align-items: center;
-      background: #16213e; padding: 12px 16px;
-      border-radius: 10px; margin-bottom: 20px;
-    }
-    .mode-toggle label { color: #aaa; font-size: 0.9em; }
-    .toggle-btn {
-      padding: 8px 16px; border-radius: 20px; border: none;
-      cursor: pointer; font-size: 0.88em; font-weight: bold;
-      transition: all 0.2s;
-    }
-    .toggle-btn.active { background: #00d4ff; color: #1a1a2e; }
-    .toggle-btn:not(.active) { background: #0f3460; color: #aaa; }
     .alert-info { font-size: 0.82em; color: #aaa; margin-top: 6px; }
+
+    /* ── Settings panel ── */
+    .settings-panel {
+      background: #16213e; border-radius: 10px;
+      padding: 20px; margin-bottom: 20px;
+      border: 1px solid #7289da; display: none;
+    }
+    .settings-panel.open { display: block; }
+    .settings-panel h2 { color: #7289da; font-size: 1.1em; margin-bottom: 16px; }
+    .setting-row {
+      display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;
+    }
+    .setting-row label { color: #aaa; font-size: 0.88em; }
+    .setting-row input {
+      padding: 10px; border-radius: 8px;
+      border: 1px solid #0f3460; background: #0f3460;
+      color: #e0e0e0; font-size: 0.92em; width: 100%;
+    }
+    .setting-row input:focus { border-color: #7289da; outline: none; }
+    .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn-save-settings {
+      padding: 9px 20px; background: #7289da; color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      font-weight: bold; font-size: 0.9em;
+    }
+    .btn-save-settings:hover { background: #5b6fb5; }
+    .btn-test-webhook {
+      padding: 9px 20px; background: none; color: #7289da;
+      border: 1px solid #7289da; border-radius: 8px; cursor: pointer;
+      font-weight: bold; font-size: 0.9em;
+    }
+    .btn-test-webhook:hover { background: #7289da; color: #fff; }
+    .webhook-status { font-size: 0.82em; margin-left: 4px; }
+    .webhook-status.ok  { color: #00ff88; }
+    .webhook-status.err { color: #ff4466; }
+    .setting-hint {
+      font-size: 0.78em; color: #666; margin-top: 4px; line-height: 1.5;
+    }
+    .setting-hint a { color: #7289da; }
+
+    /* ── Table ── */
     .table-wrap { overflow-x: auto; }
-    table {
-      width: 100%; border-collapse: collapse;
-      background: #16213e; border-radius: 10px; overflow: hidden;
-    }
-    th {
-      background: #0f3460; color: #00d4ff;
-      padding: 12px 14px; text-align: left; font-size: 0.9em;
-    }
+    table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; }
+    th { background: #0f3460; color: #00d4ff; padding: 12px 14px; text-align: left; font-size: 0.9em; }
     td { padding: 11px 14px; border-bottom: 1px solid #0f3460; font-size: 0.9em; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #1a2a4a; }
-    .price-low  { color: #00ff88; font-weight: bold; }
-    .price-high { color: #ff4466; font-weight: bold; }
-    .price-ok   { color: #e0e0e0; }
-    .badge {
-      display: inline-block; padding: 2px 10px;
-      border-radius: 12px; font-size: 0.8em; font-weight: bold;
-    }
-    .badge-alert  { background: #ff4466; color: #fff; }
-    .badge-ok     { background: #0f3460; color: #aaa; }
-    .badge-loading{ background: #555; color: #ccc; }
+    .price-low { color: #00ff88; font-weight: bold; }
+    .price-ok  { color: #e0e0e0; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: bold; }
+    .badge-alert   { background: #ff4466; color: #fff; }
+    .badge-ok      { background: #0f3460; color: #aaa; }
+    .badge-loading { background: #555; color: #ccc; }
+    .actions { display: flex; gap: 6px; align-items: center; }
     .btn-remove {
-      background: none; border: 1px solid #ff4466;
-      color: #ff4466; border-radius: 6px;
-      padding: 4px 10px; cursor: pointer; font-size: 0.82em;
+      background: none; border: 1px solid #ff4466; color: #ff4466;
+      border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82em;
     }
     .btn-remove:hover { background: #ff4466; color: #fff; }
-    .status {
-      text-align: center; font-size: 0.82em; color: #888;
-      margin-top: 14px;
+    .btn-edit {
+      background: none; border: 1px solid #00d4ff; color: #00d4ff;
+      border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82em;
     }
+    .btn-edit:hover { background: #00d4ff; color: #1a1a2e; }
+    .btn-fav {
+      background: none; border: 1px solid #f0c040; color: #f0c040;
+      border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82em;
+    }
+    .btn-fav:hover { background: #f0c040; color: #1a1a2e; }
+    .btn-fav.added { border-color: #555; color: #555; cursor: default; }
+    .alert-edit-wrap { display: flex; gap: 4px; align-items: center; }
+    .alert-edit-wrap input {
+      width: 80px; padding: 4px 8px; border-radius: 6px;
+      border: 1px solid #00d4ff; background: #0f3460; color: #e0e0e0; font-size: 0.85em;
+    }
+    .btn-save-inline {
+      background: #00d4ff; color: #1a1a2e; border: none;
+      border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.82em; font-weight: bold;
+    }
+    .btn-cancel-inline {
+      background: none; border: 1px solid #aaa; color: #aaa;
+      border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 0.82em;
+    }
+    .status { text-align: center; font-size: 0.82em; color: #888; margin-top: 14px; }
     .status span { color: #00d4ff; }
-    .empty {
-      text-align: center; padding: 40px;
-      color: #555; font-size: 1em;
-    }
+    .empty { text-align: center; padding: 40px; color: #555; font-size: 1em; }
     #notif {
-      position: fixed; top: 20px; right: 20px;
-      background: #00d4ff; color: #1a1a2e;
-      padding: 12px 20px; border-radius: 10px;
-      font-weight: bold; font-size: 0.9em;
+      position: fixed; top: 20px; right: 20px; background: #00d4ff; color: #1a1a2e;
+      padding: 12px 20px; border-radius: 10px; font-weight: bold; font-size: 0.9em;
       display: none; z-index: 999; max-width: 320px;
     }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>🔫 CS2 Steam Piac Figyelő</h1>
+  <h1>🔫 CS2 Steam Market Tracker</h1>
 
-  <div class="mode-toggle">
-    <label>Mód:</label>
-    <button class="toggle-btn active" id="btn-watchlist" onclick="setMode('watchlist')">📋 Egyedi Watchlist</button>
-    <button class="toggle-btn" id="btn-all" onclick="setMode('all')">🌐 Népszerű skinek</button>
+  <!-- Top bar -->
+  <div class="topbar">
+    <label>Mode:</label>
+    <button class="toggle-btn active" id="btn-watchlist" onclick="setMode('watchlist')">⭐ Favourites</button>
+    <button class="toggle-btn" id="btn-all" onclick="setMode('all')">🌐 Popular Skins</button>
+    <div class="currency-toggle">
+      <button class="cur-btn" id="cur-usd" onclick="setCurrency(1,'$','USD')">$ USD</button>
+      <button class="cur-btn active" id="cur-eur" onclick="setCurrency(3,'€','EUR')">€ EUR</button>
+    </div>
+    <button class="btn-settings" id="btn-settings-toggle" onclick="toggleSettings()">⚙️ Settings</button>
   </div>
 
+  <!-- Settings panel -->
+  <div class="settings-panel" id="settingsPanel">
+    <h2>⚙️ Settings</h2>
+
+    <div class="setting-row">
+      <label>Discord Webhook URL</label>
+      <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." />
+      <div class="setting-hint">
+        Create a webhook: Discord server → Channel Settings → Integrations → Webhooks → New Webhook → Copy URL.<br>
+        Price alerts will be sent to this channel automatically.
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <label>Discord Username (optional)</label>
+      <input type="text" id="webhookUsername" placeholder="CS2 Price Alert" />
+      <div class="setting-hint">The bot name shown in Discord. Leave empty for default.</div>
+    </div>
+
+    <div class="settings-actions">
+      <button class="btn-save-settings" onclick="saveSettings()">💾 Save Settings</button>
+      <button class="btn-test-webhook" onclick="testWebhook()">🧪 Test Webhook</button>
+      <span class="webhook-status" id="webhookStatus"></span>
+    </div>
+  </div>
+
+  <!-- Add skin controls -->
   <div class="controls">
     <input id="skinInput" type="text"
-      placeholder='Skin neve (pl. "AK-47 | Redline (Field-Tested)")'
+      placeholder='Skin name (e.g. "AK-47 | Redline (Field-Tested)")'
       onkeydown="if(event.key==='Enter') addSkin()" />
     <input id="alertPrice" type="number" min="0" step="0.01"
-      placeholder="Ár riasztás ($) – opcionális" />
-    <button class="btn-add" onclick="addSkin()">+ Hozzáadás</button>
-    <button class="btn-refresh" onclick="refreshAll()">🔄 Frissítés</button>
+      placeholder="Price alert (€) – optional" />
+    <button class="btn-add" onclick="addSkin()">+ Add</button>
+    <button class="btn-refresh" onclick="refreshAll()">🔄 Refresh</button>
   </div>
-  <div class="alert-info">💡 Ha megadsz ár riasztást, értesítést kapsz ha az ár ez alá esik.</div>
+  <div class="alert-info" id="alertInfo">💡 Set a price alert – you'll get an in-app notification and a Discord message when triggered.</div>
 
+  <!-- Table -->
   <div class="table-wrap" style="margin-top:16px">
-    <table id="skinTable">
+    <table>
       <thead>
         <tr>
-          <th>Skin neve</th>
-          <th>Legalacsonyabb ár</th>
-          <th>Medián ár</th>
-          <th>Forgalom (24h)</th>
-          <th>Riasztás ($)</th>
-          <th>Állapot</th>
+          <th>Skin Name</th>
+          <th>Lowest Price</th>
+          <th>Median Price</th>
+          <th>Volume (24h)</th>
+          <th id="alertHeader">Alert (€)</th>
+          <th>Status</th>
           <th></th>
         </tr>
       </thead>
       <tbody id="skinBody">
-        <tr><td colspan="7" class="empty">Adj hozzá skineket a figyeléshez ☝️</td></tr>
+        <tr><td colspan="7" class="empty">Add skins to your Favourites ☝️</td></tr>
       </tbody>
     </table>
   </div>
 
-  <div class="status" id="statusBar">
-    Utolsó frissítés: <span id="lastUpdate">–</span> &nbsp;|&nbsp; Auto-frissítés: <span>5 percenként</span>
+  <div class="status">
+    Last updated: <span id="lastUpdate">–</span> &nbsp;|&nbsp;
+    Auto-refresh: <span>every 5 minutes</span> &nbsp;|&nbsp;
+    Currency: <span id="curLabel">EUR €</span> &nbsp;|&nbsp;
+    Discord: <span id="discordStatus">–</span>
   </div>
 </div>
 
 <div id="notif"></div>
 
 <script>
-// ── Cloudflare Worker proxy ────────────────────────────────
 const CF_WORKER = 'https://cs2-proxy.imre-patrik-david.workers.dev/?url=';
 const APP_ID = 730;
 
-// ── State ──────────────────────────────────────────────────
-let mode = 'watchlist';
-let watchlist = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
-let popularData = [];
+let currencyId     = 3;
+let currencySymbol = '€';
+let currencyName   = 'EUR';
+let editingIdx     = null;
+let mode           = 'watchlist';
+let watchlist      = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
+let popularData    = [];
 
-const POPULAR_SKINS = [
-  'AK-47 | Redline (Field-Tested)',
-  'AK-47 | Asiimov (Field-Tested)',
-  'AWP | Asiimov (Field-Tested)',
-  'AWP | Dragon Lore (Factory New)',
-  'M4A4 | Howl (Field-Tested)',
-  'AK-47 | Fire Serpent (Field-Tested)',
-  'M4A1-S | Hot Rod (Factory New)',
-  'AWP | Medusa (Field-Tested)',
-  'Desert Eagle | Blaze (Factory New)',
-  'Glock-18 | Fade (Factory New)',
-  'USP-S | Kill Confirmed (Field-Tested)',
-  'AK-47 | Vulcan (Field-Tested)',
-  'M4A4 | Asiimov (Field-Tested)',
-  'AWP | Lightning Strike (Factory New)',
-  'Desert Eagle | Hand Cannon (Factory New)',
-];
+// ── Settings ───────────────────────────────────────────────
+let settings = JSON.parse(localStorage.getItem('cs2settings') || '{}');
+
+function loadSettings() {
+  if (settings.webhookUrl)      document.getElementById('webhookUrl').value = settings.webhookUrl;
+  if (settings.webhookUsername) document.getElementById('webhookUsername').value = settings.webhookUsername;
+  updateDiscordStatus();
+}
+
+function saveSettings() {
+  settings.webhookUrl      = document.getElementById('webhookUrl').value.trim();
+  settings.webhookUsername = document.getElementById('webhookUsername').value.trim();
+  localStorage.setItem('cs2settings', JSON.stringify(settings));
+  updateDiscordStatus();
+  showNotif('✅ Settings saved!');
+}
+
+function updateDiscordStatus() {
+  const el = document.getElementById('discordStatus');
+  if (settings.webhookUrl && settings.webhookUrl.startsWith('https://discord.com/api/webhooks/')) {
+    el.textContent = '✅ Connected';
+    el.style.color = '#00ff88';
+  } else {
+    el.textContent = 'Not configured';
+    el.style.color = '#666';
+  }
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  const btn   = document.getElementById('btn-settings-toggle');
+  panel.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+// ── Test webhook ───────────────────────────────────────────
+async function testWebhook() {
+  const url = document.getElementById('webhookUrl').value.trim();
+  const statusEl = document.getElementById('webhookStatus');
+  if (!url) {
+    statusEl.textContent = '⚠️ Enter a webhook URL first';
+    statusEl.className = 'webhook-status err';
+    return;
+  }
+  statusEl.textContent = '⏳ Testing...';
+  statusEl.className = 'webhook-status';
+  try {
+    await sendDiscordAlert({
+      title: '🧪 Test Alert – CS2 Tracker',
+      description: 'Your Discord webhook is working correctly! Price alerts will appear here.',
+      color: 0x00d4ff,
+    });
+    statusEl.textContent = '✅ Webhook works!';
+    statusEl.className = 'webhook-status ok';
+  } catch(e) {
+    statusEl.textContent = '❌ Failed: ' + e.message;
+    statusEl.className = 'webhook-status err';
+  }
+}
+
+// ── Discord sender ─────────────────────────────────────────
+async function sendDiscordAlert({ title, description, color, fields }) {
+  const url = settings.webhookUrl;
+  if (!url) return;
+  const body = {
+    username: settings.webhookUsername || 'CS2 Price Alert',
+    avatar_url: 'https://store.steampowered.com/favicon.ico',
+    embeds: [{
+      title,
+      description,
+      color: color || 0xff4466,
+      fields: fields || [],
+      footer: { text: 'CS2 Steam Market Tracker' },
+      timestamp: new Date().toISOString(),
+    }]
+  };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+}
+
+// ── Currency ───────────────────────────────────────────────
+function setCurrency(id, symbol, name) {
+  currencyId = id; currencySymbol = symbol; currencyName = name;
+  document.querySelectorAll('.cur-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('cur-' + name.toLowerCase()).classList.add('active');
+  document.getElementById('alertHeader').textContent  = `Alert (${symbol})`;
+  document.getElementById('alertInfo').textContent    = `💡 Set a price alert – you'll get an in-app notification and a Discord message when triggered.`;
+  document.getElementById('curLabel').textContent     = `${currencyName} ${currencySymbol}`;
+  document.getElementById('alertPrice').placeholder   = `Price alert (${symbol}) – optional`;
+  watchlist.forEach(item => { item.price = null; item.median = null; item.volume = null; item.loading = true; });
+  popularData = []; editingIdx = null;
+  renderTable(); refreshAll();
+}
 
 // ── Proxy fetch ────────────────────────────────────────────
 async function fetchWithProxy(url) {
   const res = await fetch(CF_WORKER + encodeURIComponent(url));
-  if (!res.ok) throw new Error('Worker hiba: ' + res.status);
+  if (!res.ok) throw new Error('Proxy error: ' + res.status);
   return await res.json();
 }
 
 // ── Mode ───────────────────────────────────────────────────
 function setMode(m) {
-  mode = m;
+  mode = m; editingIdx = null;
   document.getElementById('btn-watchlist').classList.toggle('active', m === 'watchlist');
   document.getElementById('btn-all').classList.toggle('active', m === 'all');
   renderTable();
@@ -194,9 +366,9 @@ function setMode(m) {
 function addSkin() {
   const name = document.getElementById('skinInput').value.trim();
   const alertPrice = parseFloat(document.getElementById('alertPrice').value) || null;
-  if (!name) return showNotif('⚠️ Add meg a skin nevét!');
+  if (!name) return showNotif('⚠️ Please enter a skin name!');
   if (watchlist.find(s => s.name.toLowerCase() === name.toLowerCase()))
-    return showNotif('⚠️ Ez a skin már a listán van!');
+    return showNotif('⚠️ Already in Favourites!');
   watchlist.push({ name, alertPrice, price: null, median: null, volume: null, loading: true });
   saveWatchlist();
   document.getElementById('skinInput').value = '';
@@ -205,136 +377,183 @@ function addSkin() {
   fetchSkin(watchlist.length - 1);
 }
 
-// ── Remove skin ────────────────────────────────────────────
-function removeSkin(idx) {
-  watchlist.splice(idx, 1);
+function addToFavourites(name) {
+  if (watchlist.find(s => s.name.toLowerCase() === name.toLowerCase()))
+    return showNotif('⚠️ Already in Favourites!');
+  watchlist.push({ name, alertPrice: null, price: null, median: null, volume: null, loading: true });
   saveWatchlist();
+  showNotif(`⭐ "${name}" added to Favourites!`);
   renderTable();
+  fetchSkin(watchlist.length - 1);
 }
 
-// ── Fetch single skin ──────────────────────────────────────
+// ── Remove ─────────────────────────────────────────────────
+function removeSkin(idx) {
+  watchlist.splice(idx, 1);
+  if (editingIdx === idx) editingIdx = null;
+  saveWatchlist(); renderTable();
+}
+
+// ── Edit alert ─────────────────────────────────────────────
+function startEdit(idx) {
+  editingIdx = idx; renderTable();
+  setTimeout(() => { const inp = document.getElementById('edit-input-' + idx); if (inp) inp.focus(); }, 50);
+}
+function saveEdit(idx) {
+  const inp = document.getElementById('edit-input-' + idx);
+  watchlist[idx].alertPrice = parseFloat(inp.value) || null;
+  saveWatchlist(); editingIdx = null; renderTable();
+  checkAlert(watchlist[idx]);
+}
+function cancelEdit() { editingIdx = null; renderTable(); }
+
+// ── Fetch skin ─────────────────────────────────────────────
 async function fetchSkin(idx) {
   const item = watchlist[idx];
-  const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=1&market_hash_name=${encodeURIComponent(item.name)}`;
+  const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
   try {
     const data = await fetchWithProxy(url);
     if (data.success) {
       item.price  = data.lowest_price  || '–';
       item.median = data.median_price  || '–';
       item.volume = data.volume        || '–';
-    } else {
-      item.price = item.median = item.volume = 'Nem található';
-    }
-  } catch(e) {
-    item.price = item.median = item.volume = 'Hiba';
-  }
+    } else { item.price = item.median = item.volume = 'Not found'; }
+  } catch(e) { item.price = item.median = item.volume = 'Error'; }
   item.loading = false;
-  saveWatchlist();
-  renderTable();
-  checkAlert(item);
+  saveWatchlist(); renderTable(); checkAlert(item);
 }
 
 // ── Refresh all ────────────────────────────────────────────
 async function refreshAll() {
   if (mode === 'watchlist') {
+    if (!watchlist.length) return;
     watchlist.forEach(item => { item.loading = true; });
     renderTable();
-    for (let i = 0; i < watchlist.length; i++) {
-      await fetchSkin(i);
-      await delay(1500);
-    }
-  } else {
-    fetchPopularSkins();
-  }
-  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('hu-HU');
+    for (let i = 0; i < watchlist.length; i++) { await fetchSkin(i); await delay(1500); }
+  } else { fetchPopularSkins(); }
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
 }
 
-// ── Fetch popular skins ────────────────────────────────────
 async function fetchPopularSkins() {
   popularData = POPULAR_SKINS.map(n => ({ name: n, price: null, median: null, volume: null, loading: true }));
   renderTable();
   for (let i = 0; i < popularData.length; i++) {
     const item = popularData[i];
-    const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=1&market_hash_name=${encodeURIComponent(item.name)}`;
+    const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
     try {
       const data = await fetchWithProxy(url);
-      if (data.success) {
-        item.price  = data.lowest_price  || '–';
-        item.median = data.median_price  || '–';
-        item.volume = data.volume        || '–';
-      } else {
-        item.price = 'Nem található';
-      }
-    } catch(e) { item.price = 'Hiba'; }
-    item.loading = false;
-    renderTable();
-    await delay(1500);
+      if (data.success) { item.price = data.lowest_price || '–'; item.median = data.median_price || '–'; item.volume = data.volume || '–'; }
+      else { item.price = 'Not found'; }
+    } catch(e) { item.price = 'Error'; }
+    item.loading = false; renderTable(); await delay(1500);
   }
-  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('hu-HU');
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
 }
 
-// ── Render table ───────────────────────────────────────────
+const POPULAR_SKINS = [
+  'AK-47 | Redline (Field-Tested)', 'AK-47 | Asiimov (Field-Tested)',
+  'AK-47 | Vulcan (Field-Tested)', 'AK-47 | Fire Serpent (Field-Tested)',
+  'AWP | Asiimov (Field-Tested)', 'AWP | Dragon Lore (Factory New)',
+  'AWP | Medusa (Field-Tested)', 'AWP | Lightning Strike (Factory New)',
+  'M4A4 | Howl (Field-Tested)', 'M4A4 | Asiimov (Field-Tested)',
+  'M4A1-S | Hot Rod (Factory New)', 'Desert Eagle | Blaze (Factory New)',
+  'Desert Eagle | Hand Cannon (Factory New)', 'Glock-18 | Fade (Factory New)',
+  'USP-S | Kill Confirmed (Field-Tested)',
+];
+
+// ── Render ─────────────────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('skinBody');
   const items = mode === 'watchlist' ? watchlist : popularData;
   if (!items.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">Adj hozzá skineket a figyeléshez ☝️</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">${mode === 'watchlist' ? 'Add skins to your Favourites ☝️' : 'Loading popular skins...'}</td></tr>`;
     return;
   }
   tbody.innerHTML = items.map((item, i) => {
-    const priceNum = parseDollar(item.price);
+    const priceNum = parsePrice(item.price);
     const isAlert = item.alertPrice && priceNum !== null && priceNum <= item.alertPrice;
-    const priceClass = isAlert ? 'price-low' : 'price-ok';
     const badge = item.loading
-      ? '<span class="badge badge-loading">⏳ Töltés...</span>'
-      : isAlert
-        ? '<span class="badge badge-alert">🔔 Riasztás!</span>'
-        : '<span class="badge badge-ok">✅ OK</span>';
-    const removeBtn = mode === 'watchlist'
-      ? `<button class="btn-remove" onclick="removeSkin(${i})">✕</button>` : '';
+      ? '<span class="badge badge-loading">⏳ Loading...</span>'
+      : isAlert ? '<span class="badge badge-alert">🔔 Alert!</span>'
+      : '<span class="badge badge-ok">✅ OK</span>';
+
+    let alertCell;
+    if (mode === 'watchlist' && editingIdx === i) {
+      alertCell = `<div class="alert-edit-wrap">
+        <input id="edit-input-${i}" type="number" min="0" step="0.01"
+          value="${item.alertPrice || ''}" placeholder="${currencySymbol}"
+          onkeydown="if(event.key==='Enter') saveEdit(${i}); if(event.key==='Escape') cancelEdit();" />
+        <button class="btn-save-inline" onclick="saveEdit(${i})">✓</button>
+        <button class="btn-cancel-inline" onclick="cancelEdit()">✕</button>
+      </div>`;
+    } else {
+      alertCell = item.alertPrice ? `${currencySymbol}${item.alertPrice}` : `<span style="color:#555">–</span>`;
+    }
+
+    let actions = '';
+    if (mode === 'watchlist') {
+      actions = `<div class="actions">
+        <button class="btn-edit" onclick="startEdit(${i})" title="Edit alert">✏️</button>
+        <button class="btn-remove" onclick="removeSkin(${i})" title="Remove">✕</button>
+      </div>`;
+    } else {
+      const added = !!watchlist.find(s => s.name === item.name);
+      actions = added
+        ? `<button class="btn-fav added" disabled>⭐ Added</button>`
+        : `<button class="btn-fav" onclick="addToFavourites('${item.name.replace(/'/g, "\\'")}')">⭐ Favourite</button>`;
+    }
+
     return `<tr>
       <td>${item.name}</td>
-      <td class="${priceClass}">${item.price ?? '–'}</td>
+      <td class="${isAlert ? 'price-low' : 'price-ok'}">${item.price ?? '–'}</td>
       <td>${item.median ?? '–'}</td>
       <td>${item.volume ?? '–'}</td>
-      <td>${item.alertPrice ? '$' + item.alertPrice : '–'}</td>
+      <td>${alertCell}</td>
       <td>${badge}</td>
-      <td>${removeBtn}</td>
+      <td>${actions}</td>
     </tr>`;
   }).join('');
 }
 
-// ── Helpers ────────────────────────────────────────────────
-function parseDollar(str) {
-  if (!str || typeof str !== 'string') return null;
-  const m = str.match(/[\d,.]+/);
-  return m ? parseFloat(m[0].replace(',', '')) : null;
-}
-
+// ── Check & send alert ─────────────────────────────────────
 function checkAlert(item) {
-  const priceNum = parseDollar(item.price);
-  if (item.alertPrice && priceNum !== null && priceNum <= item.alertPrice) {
-    showNotif(`🔔 Riasztás! ${item.name} – Ár: ${item.price} (célár: $${item.alertPrice})`);
-  }
+  const priceNum = parsePrice(item.price);
+  if (!item.alertPrice || priceNum === null || priceNum > item.alertPrice) return;
+
+  // In-app értesítés
+  showNotif(`🔔 Alert! ${item.name} – ${item.price} (target: ${currencySymbol}${item.alertPrice})`);
+
+  // Discord értesítés
+  sendDiscordAlert({
+    title: '🔔 Price Alert Triggered!',
+    description: `**${item.name}** has dropped to your target price!`,
+    color: 0xff4466,
+    fields: [
+      { name: '💰 Current Price', value: item.price, inline: true },
+      { name: '🎯 Your Target',   value: `${currencySymbol}${item.alertPrice}`, inline: true },
+      { name: '📊 Median Price',  value: item.median || '–', inline: true },
+      { name: '📦 Volume (24h)',  value: item.volume || '–', inline: true },
+      { name: '🔗 Steam Market',  value: `[View on Steam](https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.name)})`, inline: false },
+    ]
+  }).catch(() => {}); // silent fail ha nincs webhook
 }
 
+// ── Helpers ────────────────────────────────────────────────
+function parsePrice(str) {
+  if (!str || typeof str !== 'string') return null;
+  const m = str.match(/[\d]+[.,]?[\d]*/);
+  return m ? parseFloat(m[0].replace(',', '.')) : null;
+}
 function showNotif(msg) {
   const el = document.getElementById('notif');
-  el.textContent = msg;
-  el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 4000);
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 5000);
 }
-
-function saveWatchlist() {
-  localStorage.setItem('cs2watchlist', JSON.stringify(watchlist));
-}
-
+function saveWatchlist() { localStorage.setItem('cs2watchlist', JSON.stringify(watchlist)); }
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ── Auto-refresh 5 percenként ──────────────────────────────
 setInterval(() => refreshAll(), 5 * 60 * 1000);
-
-// ── Init ───────────────────────────────────────────────────
+loadSettings();
 renderTable();
 if (watchlist.length) refreshAll();
 </script>
