@@ -39,25 +39,6 @@
     }
     .btn-settings:hover, .btn-settings.active { background: #7289da; color: #fff; }
 
-    .controls {
-      display: flex; flex-wrap: wrap; gap: 10px;
-      background: #16213e; padding: 16px; border-radius: 10px; margin-bottom: 20px;
-    }
-    .controls input {
-      flex: 1; min-width: 180px; padding: 10px; border-radius: 8px;
-      border: 1px solid #0f3460; background: #0f3460;
-      color: #e0e0e0; font-size: 0.95em;
-    }
-    .controls button {
-      padding: 10px 18px; border-radius: 8px; border: none;
-      cursor: pointer; font-size: 0.95em; font-weight: bold; transition: background 0.2s;
-    }
-    .btn-add { background: #ffffff; color: #1a1a2e; }
-    .btn-add:hover { background: #dddddd; }
-    .btn-refresh { background: #0f3460; color: #ffffff; border: 1px solid #ffffff; }
-    .btn-refresh:hover { background: #1a4a80; }
-    .alert-info { font-size: 0.82em; color: #aaa; margin-top: 6px; }
-
     .settings-panel {
       background: #16213e; border-radius: 10px;
       padding: 20px; margin-bottom: 20px;
@@ -88,6 +69,25 @@
     .webhook-status.ok  { color: #00ff88; }
     .webhook-status.err { color: #ff4466; }
     .setting-hint { font-size: 0.78em; color: #666; margin-top: 4px; line-height: 1.5; }
+
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      background: #16213e; padding: 16px; border-radius: 10px; margin-bottom: 20px;
+    }
+    .controls input {
+      flex: 1; min-width: 180px; padding: 10px; border-radius: 8px;
+      border: 1px solid #0f3460; background: #0f3460;
+      color: #e0e0e0; font-size: 0.95em;
+    }
+    .controls button {
+      padding: 10px 18px; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 0.95em; font-weight: bold; transition: background 0.2s;
+    }
+    .btn-add { background: #ffffff; color: #1a1a2e; }
+    .btn-add:hover { background: #dddddd; }
+    .btn-refresh { background: #0f3460; color: #ffffff; border: 1px solid #ffffff; }
+    .btn-refresh:hover { background: #1a4a80; }
+    .alert-info { font-size: 0.82em; color: #aaa; margin-top: 6px; }
 
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background: #16213e; border-radius: 10px; overflow: hidden; }
@@ -162,8 +162,8 @@
       <label>Discord Webhook URL</label>
       <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/..." />
       <div class="setting-hint">
-        Create a webhook: Discord server → Channel Settings → Integrations → Webhooks → New Webhook → Copy URL.
-        Price alerts will be sent to this channel automatically.
+        Create a webhook: Discord server → Channel Settings → Integrations → Webhooks → New Webhook → Copy URL.<br/>
+        Price alerts will be sent to this channel automatically (also via Cron trigger every 5 min).
       </div>
     </div>
     <div class="settings-actions">
@@ -198,7 +198,7 @@
         </tr>
       </thead>
       <tbody id="skinBody">
-        <tr><td colspan="7" class="empty">Loading popular skins...</td></tr>
+        <tr><td colspan="7" class="empty">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -207,14 +207,16 @@
     Last updated: <span id="lastUpdate">–</span> &nbsp;|&nbsp;
     Auto-refresh: <span>5 minutes</span> &nbsp;|&nbsp;
     Currency: <span id="curLabel">EUR €</span> &nbsp;|&nbsp;
-    Discord: <span id="discordStatus">–</span>
+    Discord: <span id="discordStatus">–</span> &nbsp;|&nbsp;
+    KV Sync: <span id="kvStatus">–</span>
   </div>
 </div>
 
 <div id="notif"></div>
 
 <script>
-const CF_WORKER   = 'https://cs2-proxy.imre-patrik-david.workers.dev/?url=';
+const WORKER_URL  = 'https://cs2-proxy.imre-patrik-david.workers.dev';
+const CF_PROXY    = WORKER_URL + '?url=';
 const APP_ID      = 730;
 const CHUNK       = 2;
 const CHUNK_DELAY = 1500;
@@ -224,30 +226,75 @@ let currencySymbol = '€';
 let currencyName   = 'EUR';
 let editingIdx     = null;
 let mode           = 'all';
-let watchlist      = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
+let watchlist      = [];
 let popularData    = [];
-let settings       = JSON.parse(localStorage.getItem('cs2settings') || '{}');
+let settings       = {};
 
-const POPULAR_SKINS = [
-  'AK-47 | Redline (Field-Tested)', 'AK-47 | Asiimov (Field-Tested)',
-  'AK-47 | Vulcan (Field-Tested)', 'AK-47 | Fire Serpent (Field-Tested)',
-  'AWP | Asiimov (Field-Tested)', 'AWP | Dragon Lore (Factory New)',
-  'AWP | Medusa (Field-Tested)', 'AWP | Lightning Strike (Factory New)',
-  'M4A4 | Howl (Field-Tested)', 'M4A4 | Asiimov (Field-Tested)',
-  'M4A1-S | Hot Rod (Factory New)', 'Desert Eagle | Blaze (Factory New)',
-  'Desert Eagle | Hand Cannon (Factory New)', 'Glock-18 | Fade (Factory New)',
-  'USP-S | Kill Confirmed (Field-Tested)',
-];
+// ── KV sync ───────────────────────────────────────────────
+async function kvLoadWatchlist() {
+  try {
+    const res = await fetch(WORKER_URL + '/watchlist');
+    const data = await res.json();
+    watchlist = Array.isArray(data) ? data : [];
+    setKvStatus('✅ Synced', '#00ff88');
+  } catch(e) {
+    watchlist = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
+    setKvStatus('⚠️ Local only', '#f0c040');
+  }
+}
 
-// ── Settings ───────────────────────────────────────────────
-function loadSettings() {
+async function kvSaveWatchlist() {
+  localStorage.setItem('cs2watchlist', JSON.stringify(watchlist));
+  try {
+    await fetch(WORKER_URL + '/watchlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(watchlist)
+    });
+    setKvStatus('✅ Synced', '#00ff88');
+  } catch(e) {
+    setKvStatus('⚠️ Local only', '#f0c040');
+  }
+}
+
+async function kvLoadSettings() {
+  try {
+    const res = await fetch(WORKER_URL + '/watchlist');
+    // settings külön key-ben van a workerben
+  } catch(e) {}
+  const local = localStorage.getItem('cs2settings');
+  settings = local ? JSON.parse(local) : {};
+}
+
+async function kvSaveSettings(s) {
+  settings = s;
+  localStorage.setItem('cs2settings', JSON.stringify(s));
+  try {
+    await fetch(WORKER_URL + '/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(s)
+    });
+  } catch(e) {}
+}
+
+function setKvStatus(msg, color) {
+  const el = document.getElementById('kvStatus');
+  el.textContent = msg; el.style.color = color;
+}
+
+// ── Settings ──────────────────────────────────────────────
+function loadSettingsUI() {
   if (settings.webhookUrl) document.getElementById('webhookUrl').value = settings.webhookUrl;
   updateDiscordStatus();
 }
 
-function saveSettings() {
-  settings.webhookUrl = document.getElementById('webhookUrl').value.trim();
-  localStorage.setItem('cs2settings', JSON.stringify(settings));
+async function saveSettings() {
+  const s = {
+    webhookUrl: document.getElementById('webhookUrl').value.trim(),
+    currencyId, currencySymbol, currencyName
+  };
+  await kvSaveSettings(s);
   updateDiscordStatus();
   showNotif('✅ Settings saved!');
 }
@@ -266,7 +313,7 @@ function toggleSettings() {
   document.getElementById('btn-settings-toggle').classList.toggle('active');
 }
 
-// ── Test webhook ───────────────────────────────────────────
+// ── Test webhook ──────────────────────────────────────────
 async function testWebhook() {
   const url = document.getElementById('webhookUrl').value.trim();
   const statusEl = document.getElementById('webhookStatus');
@@ -280,7 +327,7 @@ async function testWebhook() {
   }
 }
 
-// ── Discord sender ─────────────────────────────────────────
+// ── Discord ───────────────────────────────────────────────
 async function sendDiscordAlert({ title, description, color, fields }) {
   const url = settings.webhookUrl;
   if (!url) return;
@@ -297,7 +344,7 @@ async function sendDiscordAlert({ title, description, color, fields }) {
   if (!res.ok) throw new Error('HTTP ' + res.status);
 }
 
-// ── Currency ───────────────────────────────────────────────
+// ── Currency ──────────────────────────────────────────────
 function setCurrency(id, symbol, name) {
   currencyId = id; currencySymbol = symbol; currencyName = name;
   document.querySelectorAll('.cur-btn').forEach(b => b.classList.remove('active'));
@@ -310,14 +357,7 @@ function setCurrency(id, symbol, name) {
   renderTable(); refreshAll();
 }
 
-// ── Proxy fetch ────────────────────────────────────────────
-async function fetchWithProxy(url) {
-  const res = await fetch(CF_WORKER + encodeURIComponent(url));
-  if (!res.ok) throw new Error('Proxy error: ' + res.status);
-  return await res.json();
-}
-
-// ── Mode ───────────────────────────────────────────────────
+// ── Mode ──────────────────────────────────────────────────
 function setMode(m) {
   mode = m; editingIdx = null;
   document.getElementById('btn-all').classList.toggle('active', m === 'all');
@@ -326,50 +366,47 @@ function setMode(m) {
   if (m === 'all' && popularData.length === 0) fetchPopularSkins();
 }
 
-// ── Add skin ───────────────────────────────────────────────
-function addSkin() {
+// ── Add skin ──────────────────────────────────────────────
+async function addSkin() {
   const name = document.getElementById('skinInput').value.trim();
   const alertPrice = parseFloat(document.getElementById('alertPrice').value) || null;
   if (!name) return showNotif('⚠️ Please enter a skin name!');
   if (watchlist.find(s => s.name.toLowerCase() === name.toLowerCase()))
     return showNotif('⚠️ Already in Favourites!');
   watchlist.push({ name, alertPrice, price: null, median: null, volume: null, loading: true });
-  saveWatchlist();
+  await kvSaveWatchlist();
   document.getElementById('skinInput').value = '';
   document.getElementById('alertPrice').value = '';
   renderTable();
   fetchWatchlistItem(watchlist.length - 1);
 }
 
-function addToFavourites(name) {
+async function addToFavourites(name) {
   if (watchlist.find(s => s.name.toLowerCase() === name.toLowerCase()))
     return showNotif('⚠️ Already in Favourites!');
   watchlist.push({ name, alertPrice: null, price: null, median: null, volume: null, loading: true });
-  saveWatchlist();
+  await kvSaveWatchlist();
   showNotif(`⭐ "${name}" added to Favourites!`);
   renderTable();
   fetchWatchlistItem(watchlist.length - 1);
 }
 
-// ── Remove ─────────────────────────────────────────────────
-function removeSkin(idx) {
+// ── Remove ────────────────────────────────────────────────
+async function removeSkin(idx) {
   watchlist.splice(idx, 1);
   if (editingIdx === idx) editingIdx = null;
-  saveWatchlist(); renderTable();
+  await kvSaveWatchlist(); renderTable();
 }
 
-// ── Edit alert ─────────────────────────────────────────────
-function startEdit(idx) {
-  editingIdx = idx; renderTable();
-  setTimeout(() => { const inp = document.getElementById('edit-input-' + idx); if (inp) inp.focus(); }, 50);
-}
-function saveEdit(idx) {
+// ── Edit alert ────────────────────────────────────────────
+function startEdit(idx) { editingIdx = idx; renderTable(); setTimeout(() => { const inp = document.getElementById('edit-input-' + idx); if (inp) inp.focus(); }, 50); }
+async function saveEdit(idx) {
   watchlist[idx].alertPrice = parseFloat(document.getElementById('edit-input-' + idx).value) || null;
-  saveWatchlist(); editingIdx = null; renderTable(); checkAlert(watchlist[idx]);
+  await kvSaveWatchlist(); editingIdx = null; renderTable(); checkAlert(watchlist[idx]);
 }
 function cancelEdit() { editingIdx = null; renderTable(); }
 
-// ── Fetch watchlist item ───────────────────────────────────
+// ── Fetch watchlist item ──────────────────────────────────
 async function fetchWatchlistItem(idx) {
   const item = watchlist[idx];
   const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
@@ -382,10 +419,10 @@ async function fetchWatchlistItem(idx) {
     } else { item.price = item.median = item.volume = 'Not found'; }
   } catch(e) { item.price = item.median = item.volume = 'Error'; }
   item.loading = false;
-  saveWatchlist(); renderTable(); checkAlert(item);
+  await kvSaveWatchlist(); renderTable(); checkAlert(item);
 }
 
-// ── Fetch popular item ─────────────────────────────────────
+// ── Fetch popular item ────────────────────────────────────
 async function fetchPopularItem(idx) {
   const item = popularData[idx];
   const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
@@ -400,7 +437,17 @@ async function fetchPopularItem(idx) {
   item.loading = false;
 }
 
-// ── Fetch popular skins ────────────────────────────────────
+const POPULAR_SKINS = [
+  'AK-47 | Redline (Field-Tested)', 'AK-47 | Asiimov (Field-Tested)',
+  'AK-47 | Vulcan (Field-Tested)', 'AK-47 | Fire Serpent (Field-Tested)',
+  'AWP | Asiimov (Field-Tested)', 'AWP | Dragon Lore (Factory New)',
+  'AWP | Medusa (Field-Tested)', 'AWP | Lightning Strike (Factory New)',
+  'M4A4 | Howl (Field-Tested)', 'M4A4 | Asiimov (Field-Tested)',
+  'M4A1-S | Hot Rod (Factory New)', 'Desert Eagle | Blaze (Factory New)',
+  'Desert Eagle | Hand Cannon (Factory New)', 'Glock-18 | Fade (Factory New)',
+  'USP-S | Kill Confirmed (Field-Tested)',
+];
+
 async function fetchPopularSkins() {
   popularData = POPULAR_SKINS.map(n => ({ name: n, price: null, median: null, volume: null, loading: true }));
   renderTable();
@@ -414,7 +461,6 @@ async function fetchPopularSkins() {
   document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
 }
 
-// ── Refresh all ────────────────────────────────────────────
 async function refreshAll() {
   if (mode === 'all') {
     fetchPopularSkins();
@@ -432,7 +478,13 @@ async function refreshAll() {
   }
 }
 
-// ── Render ─────────────────────────────────────────────────
+async function fetchWithProxy(url) {
+  const res = await fetch(CF_PROXY + encodeURIComponent(url));
+  if (!res.ok) throw new Error('Proxy error: ' + res.status);
+  return await res.json();
+}
+
+// ── Render ────────────────────────────────────────────────
 function renderTable() {
   const tbody = document.getElementById('skinBody');
   const items = mode === 'watchlist' ? watchlist : popularData;
@@ -486,15 +538,15 @@ function renderTable() {
   }).join('');
 }
 
-// ── Check & send alert ─────────────────────────────────────
+// ── Check & send alert ────────────────────────────────────
 function checkAlert(item) {
   const priceNum = parsePrice(item.price);
   if (!item.alertPrice || priceNum === null || priceNum > item.alertPrice) return;
-  const steamUrl = `https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.name)}?filter=&country=HU&currency=${currencyId}`;
+  const steamUrl = `https://steamcommunity.com/market/listings/730/${encodeURIComponent(item.name)}`;
   showNotif(`🔔 Alert! ${item.name} – ${item.price} (target: ${currencySymbol}${item.alertPrice})`);
   sendDiscordAlert({
     title: `🔔 Price Alert – ${item.name}`,
-    description: `**[👉 Click here to buy on Steam Market](${steamUrl})**\n\nThe price has dropped to your target!`,
+    description: `**[👉 Buy on Steam Market](${steamUrl})**`,
     color: 0xff4466,
     fields: [
       { name: '💰 Current Lowest', value: `**${item.price}**`, inline: true },
@@ -505,7 +557,6 @@ function checkAlert(item) {
   }).catch(() => {});
 }
 
-// ── Helpers ────────────────────────────────────────────────
 function parsePrice(str) {
   if (!str || typeof str !== 'string') return null;
   const m = str.match(/[\d]+[.,]?[\d]*/);
@@ -516,14 +567,19 @@ function showNotif(msg) {
   el.textContent = msg; el.style.display = 'block';
   setTimeout(() => el.style.display = 'none', 5000);
 }
-function saveWatchlist() { localStorage.setItem('cs2watchlist', JSON.stringify(watchlist)); }
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ── Init ───────────────────────────────────────────────────
-loadSettings();
-renderTable();
-fetchPopularSkins();
-setInterval(() => refreshAll(), 300000); // fix 5 perc
+// ── Init ──────────────────────────────────────────────────
+async function init() {
+  await kvLoadSettings();
+  await kvLoadWatchlist();
+  loadSettingsUI();
+  renderTable();
+  fetchPopularSkins();
+  setInterval(() => refreshAll(), 300000);
+}
+
+init();
 </script>
 </body>
 </html>
