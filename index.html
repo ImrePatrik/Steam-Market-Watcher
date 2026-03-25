@@ -67,14 +67,12 @@
     .settings-panel h2 { color: #7289da; font-size: 1.1em; margin-bottom: 16px; }
     .setting-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
     .setting-row label { color: #aaa; font-size: 0.88em; }
-    .setting-row input,
-    .setting-row select {
+    .setting-row input {
       padding: 10px; border-radius: 8px;
       border: 1px solid #0f3460; background: #0f3460;
-      color: #e0e0e0; font-size: 0.92em; width: 100%; cursor: pointer;
+      color: #e0e0e0; font-size: 0.92em; width: 100%;
     }
-    .setting-row input:focus,
-    .setting-row select:focus { border-color: #ffffff; outline: none; }
+    .setting-row input:focus { border-color: #ffffff; outline: none; }
     .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .btn-save-settings {
       padding: 9px 20px; background: #7289da; color: #fff;
@@ -168,18 +166,6 @@
         Price alerts will be sent to this channel automatically.
       </div>
     </div>
-    <div class="setting-row">
-      <label>Auto-refresh interval</label>
-      <select id="refreshInterval">
-        <option value="120000">2 minutes</option>
-        <option value="300000" selected>5 minutes</option>
-        <option value="600000">10 minutes</option>
-        <option value="0">Disabled</option>
-      </select>
-      <div class="setting-hint">
-        How often prices are automatically refreshed. 2 minutes minimum recommended to avoid Steam rate limiting.
-      </div>
-    </div>
     <div class="settings-actions">
       <button class="btn-save-settings" onclick="saveSettings()">💾 Save Settings</button>
       <button class="btn-test-webhook" onclick="testWebhook()">🧪 Test Webhook</button>
@@ -219,7 +205,7 @@
 
   <div class="status">
     Last updated: <span id="lastUpdate">–</span> &nbsp;|&nbsp;
-    Auto-refresh: <span id="refreshLabel">5 minutes</span> &nbsp;|&nbsp;
+    Auto-refresh: <span>5 minutes</span> &nbsp;|&nbsp;
     Currency: <span id="curLabel">EUR €</span> &nbsp;|&nbsp;
     Discord: <span id="discordStatus">–</span>
   </div>
@@ -241,14 +227,6 @@ let mode           = 'all';
 let watchlist      = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
 let popularData    = [];
 let settings       = JSON.parse(localStorage.getItem('cs2settings') || '{}');
-let refreshTimer   = null;
-
-const INTERVAL_LABELS = {
-  '120000': '2 minutes',
-  '300000': '5 minutes',
-  '600000': '10 minutes',
-  '0':      'disabled',
-};
 
 const POPULAR_SKINS = [
   'AK-47 | Redline (Field-Tested)', 'AK-47 | Asiimov (Field-Tested)',
@@ -261,29 +239,16 @@ const POPULAR_SKINS = [
   'USP-S | Kill Confirmed (Field-Tested)',
 ];
 
-// ── Auto-refresh ───────────────────────────────────────────
-function startAutoRefresh(ms) {
-  if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = null;
-  document.getElementById('refreshLabel').textContent = INTERVAL_LABELS[String(ms)] || '5 minutes';
-  if (!ms || ms == 0) return;
-  refreshTimer = setInterval(() => refreshAll(), ms);
-}
-
 // ── Settings ───────────────────────────────────────────────
 function loadSettings() {
-  if (settings.webhookUrl)      document.getElementById('webhookUrl').value = settings.webhookUrl;
-  if (settings.refreshInterval) document.getElementById('refreshInterval').value = settings.refreshInterval;
+  if (settings.webhookUrl) document.getElementById('webhookUrl').value = settings.webhookUrl;
   updateDiscordStatus();
-  startAutoRefresh(parseInt(settings.refreshInterval) || 300000);
 }
 
 function saveSettings() {
-  settings.webhookUrl      = document.getElementById('webhookUrl').value.trim();
-  settings.refreshInterval = document.getElementById('refreshInterval').value;
+  settings.webhookUrl = document.getElementById('webhookUrl').value.trim();
   localStorage.setItem('cs2settings', JSON.stringify(settings));
   updateDiscordStatus();
-  startAutoRefresh(parseInt(settings.refreshInterval));
   showNotif('✅ Settings saved!');
 }
 
@@ -404,7 +369,7 @@ function saveEdit(idx) {
 }
 function cancelEdit() { editingIdx = null; renderTable(); }
 
-// ── Fetch single watchlist item ────────────────────────────
+// ── Fetch watchlist item ───────────────────────────────────
 async function fetchWatchlistItem(idx) {
   const item = watchlist[idx];
   const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
@@ -420,7 +385,7 @@ async function fetchWatchlistItem(idx) {
   saveWatchlist(); renderTable(); checkAlert(item);
 }
 
-// ── Fetch single popular item ──────────────────────────────
+// ── Fetch popular item ─────────────────────────────────────
 async function fetchPopularItem(idx) {
   const item = popularData[idx];
   const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=${currencyId}&market_hash_name=${encodeURIComponent(item.name)}`;
@@ -558,6 +523,7 @@ function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 loadSettings();
 renderTable();
 fetchPopularSkins();
+setInterval(() => refreshAll(), 300000); // fix 5 perc
 </script>
 </body>
 </html>
