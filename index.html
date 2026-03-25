@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <title>CS2 Steam Piac Figyelő</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00d4ff;
+      margin-bottom: 20px;
+      font-size: 1.8em;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      background: #16213e; padding: 16px; border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .controls input, .controls select {
+      flex: 1; min-width: 180px;
+      padding: 10px; border-radius: 8px;
+      border: 1px solid #0f3460; background: #0f3460;
+      color: #e0e0e0; font-size: 0.95em;
+    }
+    .controls button {
+      padding: 10px 18px; border-radius: 8px; border: none;
+      cursor: pointer; font-size: 0.95em; font-weight: bold;
+      transition: background 0.2s;
+    }
+    .btn-add  { background: #00d4ff; color: #1a1a2e; }
+    .btn-add:hover  { background: #00b8d9; }
+    .btn-refresh { background: #0f3460; color: #00d4ff; border: 1px solid #00d4ff; }
+    .btn-refresh:hover { background: #1a4a80; }
+    .mode-toggle {
+      display: flex; gap: 10px; align-items: center;
+      background: #16213e; padding: 12px 16px;
+      border-radius: 10px; margin-bottom: 20px;
+    }
+    .mode-toggle label { color: #aaa; font-size: 0.9em; }
+    .toggle-btn {
+      padding: 8px 16px; border-radius: 20px; border: none;
+      cursor: pointer; font-size: 0.88em; font-weight: bold;
+      transition: all 0.2s;
+    }
+    .toggle-btn.active { background: #00d4ff; color: #1a1a2e; }
+    .toggle-btn:not(.active) { background: #0f3460; color: #aaa; }
+    .alert-info { font-size: 0.82em; color: #aaa; margin-top: 6px; }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: #16213e; border-radius: 10px; overflow: hidden;
+    }
+    th {
+      background: #0f3460; color: #00d4ff;
+      padding: 12px 14px; text-align: left; font-size: 0.9em;
+    }
+    td { padding: 11px 14px; border-bottom: 1px solid #0f3460; font-size: 0.9em; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1a2a4a; }
+    .price-low  { color: #00ff88; font-weight: bold; }
+    .price-high { color: #ff4466; font-weight: bold; }
+    .price-ok   { color: #e0e0e0; }
+    .badge {
+      display: inline-block; padding: 2px 10px;
+      border-radius: 12px; font-size: 0.8em; font-weight: bold;
+    }
+    .badge-alert  { background: #ff4466; color: #fff; }
+    .badge-ok     { background: #0f3460; color: #aaa; }
+    .badge-loading{ background: #555; color: #ccc; }
+    .btn-remove {
+      background: none; border: 1px solid #ff4466;
+      color: #ff4466; border-radius: 6px;
+      padding: 4px 10px; cursor: pointer; font-size: 0.82em;
+    }
+    .btn-remove:hover { background: #ff4466; color: #fff; }
+    .status {
+      text-align: center; font-size: 0.82em; color: #888;
+      margin-top: 14px;
+    }
+    .status span { color: #00d4ff; }
+    .empty {
+      text-align: center; padding: 40px;
+      color: #555; font-size: 1em;
+    }
+    #notif {
+      position: fixed; top: 20px; right: 20px;
+      background: #00d4ff; color: #1a1a2e;
+      padding: 12px 20px; border-radius: 10px;
+      font-weight: bold; font-size: 0.9em;
+      display: none; z-index: 999; max-width: 320px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🔫 CS2 Steam Piac Figyelő</h1>
+
+  <div class="mode-toggle">
+    <label>Mód:</label>
+    <button class="toggle-btn active" id="btn-watchlist" onclick="setMode('watchlist')">📋 Egyedi Watchlist</button>
+    <button class="toggle-btn" id="btn-all" onclick="setMode('all')">🌐 Népszerű skinek</button>
+  </div>
+
+  <div class="controls">
+    <input id="skinInput" type="text"
+      placeholder='Skin neve (pl. "AK-47 | Redline (Field-Tested)")'
+      onkeydown="if(event.key==='Enter') addSkin()" />
+    <input id="alertPrice" type="number" min="0" step="0.01"
+      placeholder="Ár riasztás ($) – opcionális" />
+    <button class="btn-add" onclick="addSkin()">+ Hozzáadás</button>
+    <button class="btn-refresh" onclick="refreshAll()">🔄 Frissítés</button>
+  </div>
+  <div class="alert-info">💡 Ha megadsz ár riasztást, értesítést kapsz ha az ár ez alá esik.</div>
+
+  <div class="table-wrap" style="margin-top:16px">
+    <table id="skinTable">
+      <thead>
+        <tr>
+          <th>Skin neve</th>
+          <th>Legalacsonyabb ár</th>
+          <th>Medián ár</th>
+          <th>Forgalom (24h)</th>
+          <th>Riasztás ($)</th>
+          <th>Állapot</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="skinBody">
+        <tr><td colspan="7" class="empty">Adj hozzá skineket a figyeléshez ☝️</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="status" id="statusBar">
+    Utolsó frissítés: <span id="lastUpdate">–</span> &nbsp;|&nbsp; Auto-frissítés: <span>5 percenként</span>
+  </div>
+</div>
+
+<div id="notif"></div>
+
+<script>
+// ── Cloudflare Worker proxy ────────────────────────────────
+const CF_WORKER = 'https://cs2-proxy.imre-patrik-david.workers.dev/?url=';
+const APP_ID = 730;
+
+// ── State ──────────────────────────────────────────────────
+let mode = 'watchlist';
+let watchlist = JSON.parse(localStorage.getItem('cs2watchlist') || '[]');
+let popularData = [];
+
+const POPULAR_SKINS = [
+  'AK-47 | Redline (Field-Tested)',
+  'AK-47 | Asiimov (Field-Tested)',
+  'AWP | Asiimov (Field-Tested)',
+  'AWP | Dragon Lore (Factory New)',
+  'M4A4 | Howl (Field-Tested)',
+  'AK-47 | Fire Serpent (Field-Tested)',
+  'M4A1-S | Hot Rod (Factory New)',
+  'AWP | Medusa (Field-Tested)',
+  'Desert Eagle | Blaze (Factory New)',
+  'Glock-18 | Fade (Factory New)',
+  'USP-S | Kill Confirmed (Field-Tested)',
+  'AK-47 | Vulcan (Field-Tested)',
+  'M4A4 | Asiimov (Field-Tested)',
+  'AWP | Lightning Strike (Factory New)',
+  'Desert Eagle | Hand Cannon (Factory New)',
+];
+
+// ── Proxy fetch ────────────────────────────────────────────
+async function fetchWithProxy(url) {
+  const res = await fetch(CF_WORKER + encodeURIComponent(url));
+  if (!res.ok) throw new Error('Worker hiba: ' + res.status);
+  return await res.json();
+}
+
+// ── Mode ───────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-watchlist').classList.toggle('active', m === 'watchlist');
+  document.getElementById('btn-all').classList.toggle('active', m === 'all');
+  renderTable();
+  if (m === 'all' && popularData.length === 0) fetchPopularSkins();
+}
+
+// ── Add skin ───────────────────────────────────────────────
+function addSkin() {
+  const name = document.getElementById('skinInput').value.trim();
+  const alertPrice = parseFloat(document.getElementById('alertPrice').value) || null;
+  if (!name) return showNotif('⚠️ Add meg a skin nevét!');
+  if (watchlist.find(s => s.name.toLowerCase() === name.toLowerCase()))
+    return showNotif('⚠️ Ez a skin már a listán van!');
+  watchlist.push({ name, alertPrice, price: null, median: null, volume: null, loading: true });
+  saveWatchlist();
+  document.getElementById('skinInput').value = '';
+  document.getElementById('alertPrice').value = '';
+  renderTable();
+  fetchSkin(watchlist.length - 1);
+}
+
+// ── Remove skin ────────────────────────────────────────────
+function removeSkin(idx) {
+  watchlist.splice(idx, 1);
+  saveWatchlist();
+  renderTable();
+}
+
+// ── Fetch single skin ──────────────────────────────────────
+async function fetchSkin(idx) {
+  const item = watchlist[idx];
+  const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=1&market_hash_name=${encodeURIComponent(item.name)}`;
+  try {
+    const data = await fetchWithProxy(url);
+    if (data.success) {
+      item.price  = data.lowest_price  || '–';
+      item.median = data.median_price  || '–';
+      item.volume = data.volume        || '–';
+    } else {
+      item.price = item.median = item.volume = 'Nem található';
+    }
+  } catch(e) {
+    item.price = item.median = item.volume = 'Hiba';
+  }
+  item.loading = false;
+  saveWatchlist();
+  renderTable();
+  checkAlert(item);
+}
+
+// ── Refresh all ────────────────────────────────────────────
+async function refreshAll() {
+  if (mode === 'watchlist') {
+    watchlist.forEach(item => { item.loading = true; });
+    renderTable();
+    for (let i = 0; i < watchlist.length; i++) {
+      await fetchSkin(i);
+      await delay(1500);
+    }
+  } else {
+    fetchPopularSkins();
+  }
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('hu-HU');
+}
+
+// ── Fetch popular skins ────────────────────────────────────
+async function fetchPopularSkins() {
+  popularData = POPULAR_SKINS.map(n => ({ name: n, price: null, median: null, volume: null, loading: true }));
+  renderTable();
+  for (let i = 0; i < popularData.length; i++) {
+    const item = popularData[i];
+    const url = `https://steamcommunity.com/market/priceoverview/?appid=${APP_ID}&currency=1&market_hash_name=${encodeURIComponent(item.name)}`;
+    try {
+      const data = await fetchWithProxy(url);
+      if (data.success) {
+        item.price  = data.lowest_price  || '–';
+        item.median = data.median_price  || '–';
+        item.volume = data.volume        || '–';
+      } else {
+        item.price = 'Nem található';
+      }
+    } catch(e) { item.price = 'Hiba'; }
+    item.loading = false;
+    renderTable();
+    await delay(1500);
+  }
+  document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('hu-HU');
+}
+
+// ── Render table ───────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('skinBody');
+  const items = mode === 'watchlist' ? watchlist : popularData;
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Adj hozzá skineket a figyeléshez ☝️</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map((item, i) => {
+    const priceNum = parseDollar(item.price);
+    const isAlert = item.alertPrice && priceNum !== null && priceNum <= item.alertPrice;
+    const priceClass = isAlert ? 'price-low' : 'price-ok';
+    const badge = item.loading
+      ? '<span class="badge badge-loading">⏳ Töltés...</span>'
+      : isAlert
+        ? '<span class="badge badge-alert">🔔 Riasztás!</span>'
+        : '<span class="badge badge-ok">✅ OK</span>';
+    const removeBtn = mode === 'watchlist'
+      ? `<button class="btn-remove" onclick="removeSkin(${i})">✕</button>` : '';
+    return `<tr>
+      <td>${item.name}</td>
+      <td class="${priceClass}">${item.price ?? '–'}</td>
+      <td>${item.median ?? '–'}</td>
+      <td>${item.volume ?? '–'}</td>
+      <td>${item.alertPrice ? '$' + item.alertPrice : '–'}</td>
+      <td>${badge}</td>
+      <td>${removeBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Helpers ────────────────────────────────────────────────
+function parseDollar(str) {
+  if (!str || typeof str !== 'string') return null;
+  const m = str.match(/[\d,.]+/);
+  return m ? parseFloat(m[0].replace(',', '')) : null;
+}
+
+function checkAlert(item) {
+  const priceNum = parseDollar(item.price);
+  if (item.alertPrice && priceNum !== null && priceNum <= item.alertPrice) {
+    showNotif(`🔔 Riasztás! ${item.name} – Ár: ${item.price} (célár: $${item.alertPrice})`);
+  }
+}
+
+function showNotif(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function saveWatchlist() {
+  localStorage.setItem('cs2watchlist', JSON.stringify(watchlist));
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Auto-refresh 5 percenként ──────────────────────────────
+setInterval(() => refreshAll(), 5 * 60 * 1000);
+
+// ── Init ───────────────────────────────────────────────────
+renderTable();
+if (watchlist.length) refreshAll();
+</script>
+</body>
+</html>
