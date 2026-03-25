@@ -175,18 +175,15 @@
     </div>
     <div class="setting-row">
       <label>Auto-refresh interval</label>
-      <select id="refreshInterval">
-        <option value="30000">30 seconds ⚠️ (may hit rate limits)</option>
-        <option value="60000">1 minute</option>
-        <option value="120000">2 minutes</option>
-        <option value="300000" selected>5 minutes</option>
-        <option value="600000">10 minutes</option>
-        <option value="0">Disabled</option>
-      </select>
-      <div class="setting-hint">
-        How often prices are automatically refreshed.<br>
-        ⚠️ <strong style="color:#f0c040">30 seconds</strong> may cause rate limiting with 10+ skins — some prices may show "Error". 1–2 minutes recommended.
-      </div>
+<select id="refreshInterval">
+  <option value="120000">2 minutes</option>
+  <option value="300000" selected>5 minutes</option>
+  <option value="600000">10 minutes</option>
+  <option value="0">Disabled</option>
+</select>
+<div class="setting-hint">
+  How often prices are automatically refreshed. 2 minutes minimum recommended to avoid Steam rate limiting.
+</div>
     </div>
     <div class="settings-actions">
       <button class="btn-save-settings" onclick="saveSettings()">💾 Save Settings</button>
@@ -252,8 +249,7 @@ let settings       = JSON.parse(localStorage.getItem('cs2settings') || '{}');
 let refreshTimer   = null;
 
 const INTERVAL_LABELS = {
-  '30000': '30 seconds', '60000': '1 minute', '120000': '2 minutes',
-  '300000': '5 minutes', '600000': '10 minutes', '0': 'disabled',
+  '120000': '2 minutes', '300000': '5 minutes', '600000': '10 minutes', '0': 'disabled',
 };
 
 const POPULAR_SKINS = [
